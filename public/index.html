@@ -1,0 +1,251 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Spotify Most Played</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <style type="text/css">
+      #login, #loggedin {
+        display: none;
+      }
+      .text-overflow {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 500px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div>
+      <div class="jumbotron text-center" id="login">
+        <a href="/login" class="btn btn-success btn-lg">Log in with Spotify</a>
+      </div>
+      <div class="panel panel-default" id="loggedin">
+        <div class="panel-body" id="user-profile">
+        </div>
+        <div class="pager">
+
+          <div class="panel">
+              <button class="btn btn-lg btn-primary" id="save-as-playlist">Save as playlist</button>
+          </div>
+
+          <div id="playlist" class="bg-success"></div>
+          <div class="row">
+            <h3>Set time range</h3>
+            <button data-time-range="short_term" type="button" class="btn btn-default change-time-range">4 Weeks</button>
+            <button data-time-range="medium_term" type="button" class="btn btn-default change-time-range">6 Months</button>
+            <button data-time-range="long_term" type="button" class="btn btn-default active change-time-range">All Time</button>
+          </div>
+        </div>
+        <div id="user-history">
+        </div>
+      </div>
+    </div>
+
+    <script id="user-profile-template" type="text/x-handlebars-template">
+      <h2>Top 50</h2>
+      <div class="media">
+        <div class="pull-left">
+          <img class="media-object img-thumbnail" width="150" src="{{images.0.url}}" />
+        </div>
+        <div class="media-body">
+          <dl class="dl-horizontal">
+            <dt>Name</dt><dd id="name" class="clearfix">{{display_name}}</dd>
+            <dt>ID</dt><dd id="userid">{{id}}</dd>
+            <dt>Email</dt><dd>{{email}}</dd>
+            <dt>Link</dt><dd><a href="{{uri}}">Profile</a></dd>
+            <dt>Country</dt><dd>{{country}}</dd>
+            <dt>Followers</dt><dd>{{followers.total}}</dd>
+          </dl>
+        </div>
+      </div>
+    </script>
+
+    <script id="playlist-template" type="text/x-handlebars-template">
+      <div class="media-body">
+        <dl class="dl-horizontal">
+          <dt>Name</dt><dd>{{name}}</dd>
+          <dt>Description</dt><dd>{{description}}</dd>
+          <dt>ID</dt><dd>{{id}}</dd>
+          <dt>Link</dt><dd><a href="{{uri}}">{{uri}}</a></dd>
+        </dl>
+      </div>
+    </script>
+
+
+    <script id="user-history-template" type="text/x-handlebars-template">
+      <table class="table table-striped">
+
+        <thead>
+          <tr>
+            <th>Popularity</th>
+            <th>Artist(s)</th>
+            <th>Album</th>
+            <th>Name</th>
+          </tr>
+        </thead>
+
+        <tbody>
+      {{#each items}}
+        <tr>
+          <td class="text-center">
+            <span class="badge ">{{popularity}}</span>
+          </td>
+
+          <td>
+              {{#artists}}
+                {{name}}
+                  {{#if @last}}{{else}} | {{/if}}
+              {{/artists}}
+          </td>
+
+          <td>
+            {{album.name}}
+          </td>
+
+          <td>
+            {{name}}
+          </td>
+
+          <td>
+            <a class="h4" href="{{uri}}"><button class="btn btn-success">Play</button></a>
+          </td>
+
+          <td>
+            <img class="img-responsive float-right" alt="{{album.name}}" class="img-thumbnail" src="{{album.images.2.url}}">
+          </td>
+        </div>
+      {{/each}}
+      </tbody>
+    </table>
+    </script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script>
+      (function() {
+
+        /**
+         * Obtains parameters from the hash of the URL
+         * @return Object
+         */
+        function getHashParams() {
+          var hashParams = {};
+          var e, r = /([^&;=]+)=?([^&;]*)/g,
+              q = window.location.hash.substring(1);
+          while ( e = r.exec(q)) {
+             hashParams[e[1]] = decodeURIComponent(e[2]);
+          }
+          return hashParams;
+        }
+
+        var songs = [];
+
+        function getSongUris(data) {
+          var uris = [];
+          for(var i=0; i<data.items.length; i++) {
+            uris.push(data.items[i].uri);
+          }
+          return uris;
+        }
+
+        var userProfileSource = document.getElementById('user-profile-template').innerHTML,
+            userProfileTemplate = Handlebars.compile(userProfileSource),
+            userProfilePlaceholder = document.getElementById('user-profile');
+
+        var userHistorySource = document.getElementById('user-history-template').innerHTML,
+            userHistoryTemplate = Handlebars.compile(userHistorySource),
+            userHistoryPlaceholder = document.getElementById('user-history');
+
+        var playlistSource = document.getElementById('playlist-template').innerHTML,
+            playlistTemplate = Handlebars.compile(playlistSource),
+            playlistPlaceholder = document.getElementById('playlist');
+
+        var params = getHashParams();
+
+        var access_token = params.access_token,
+            refresh_token = params.refresh_token,
+            error = params.error;
+
+        if (error) {
+          alert('There was an error during the authentication');
+        } else {
+          if (access_token) {
+            console.log(access_token);
+            $.ajax({
+                url: 'https://api.spotify.com/v1/me',
+                headers: {
+                  'Authorization': 'Bearer ' + access_token
+                },
+                success: function(response) {
+                  userProfilePlaceholder.innerHTML = userProfileTemplate(response);
+
+                  console.log(response);
+
+                  $('#login').hide();
+                  $('#loggedin').show();
+                },
+                error: function() {
+                  window.location.href = '/';
+                }
+            });
+
+            getHistory('long_term');
+          } else {
+              // render initial screen
+              $('#login').show();
+              $('#loggedin').hide();
+          }
+
+
+          function getHistory(timeRange) {
+            $.ajax({
+                url: 'https://api.spotify.com/v1/me/top/tracks?time_range='+timeRange+'&limit=50',
+                headers: {
+                  'Authorization': 'Bearer ' + access_token
+                },
+                success: function(response) {
+                  console.log(response);
+
+                  songs = getSongUris(response);
+
+                  userHistoryPlaceholder.innerHTML = userHistoryTemplate(response);
+                },
+                error: function() {
+                  userHistoryPlaceholder.innerHTML = 'There was an error loading your data';
+                }
+            });
+          }
+
+          document.getElementById('save-as-playlist').addEventListener('click', function() {
+
+            var userId = document.getElementById('userid').textContent;
+            var name = document.getElementById('name').textContent;
+
+            $.ajax({
+              url: '/create-playlist',
+              data: {
+                "token": access_token,
+                "userId": userId,
+                "name": name,
+                "songs": JSON.stringify(songs)
+              }
+            }).done(function(response) {
+              console.log(response);
+              playlistPlaceholder.innerHTML = playlistTemplate(response);
+            });
+          }, false);
+
+          $('.change-time-range').click(function(e) {
+            $('.change-time-range').removeClass('active');
+            $(e.target).addClass('active');
+            var timeRange = e.target.getAttribute('data-time-range');
+            getHistory(timeRange);
+          });
+
+        }
+      })();
+    </script>
+  </body>
+</html>
