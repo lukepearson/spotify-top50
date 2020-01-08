@@ -11,11 +11,11 @@ var ifaces = os.networkInterfaces();
 const ip = ifaces.en0.find(n => n.family === 'IPv4').address;
 console.log('IP address is ' + ip);
 
-var code
-
-let client_id = '[YOUR_SPOTIFY_APP_CLIENT_ID]'; // Your client id
-let client_secret = '[YOUR_SPOTIFY_APP_CLIENT_SECRET]'; // Your secret
-let redirect_uri = 'http://[YOUR_APP_URL]:8888/callback'; // Your redirect uri
+var client_id = process.env.SPOTIFY_APP_CLIENT_ID || '[YOUR_SPOTIFY_APP_CLIENT_ID]'; // Your client id
+var client_secret = process.env.SPOTIFY_APP_CLIENT_SECRET || '[YOUR_SPOTIFY_APP_CLIENT_SECRET]'; // Your secret
+var appUrl = process.env.APP_URL || '[YOUR_APP_URL]';
+var port = process.env.PORT || 8888;
+var redirect_uri = `http://${appUrl}:${port}/callback`; // Your redirect uri
 
 /**
  * Generates a random string containing numbers and letters
@@ -99,19 +99,7 @@ function addTracks (userId, token, playlist, songs, cb) {
 }
 
 app.get('/callback', function (req, res) {
-  // your application requests refresh and access tokens
-  // after checking the state parameter
-
   code = req.query.code || null
-  var state = req.query.state || null
-  var storedState = req.cookies ? req.cookies[stateKey] : null
-
-  // if (state === null || state !== storedState) {
-  //   res.redirect('/#' +
-  //     querystring.stringify({
-  //       error: 'state_mismatch'
-  //     }))
-  // } else {
     res.clearCookie(stateKey)
     var authOptions = {
       url: 'https://accounts.spotify.com/api/token',
@@ -185,6 +173,5 @@ app.get('/refresh_token', function (req, res) {
   })
 })
 
-console.log('http://localhost:8888')
-app.listen(8888)
-execSync('open http://localhost:8888');
+console.log(`Listening on ${port}`);
+app.listen(port);
